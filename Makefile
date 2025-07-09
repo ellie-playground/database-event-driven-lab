@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -O2 -I/usr/local/include
-LDFLAGS = -L/usr/local/lib -lhiredis
+LDFLAGS = -L/usr/local/lib -lhiredis -lsqlite3
 TARGET = publisher
 SRCS = publisher.c
 OBJS = $(SRCS:.c=.o)
