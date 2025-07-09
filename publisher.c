@@ -3,17 +3,19 @@
 #include <sqlite3.h>
 
 int main(void) {
-    char query[1024];
+    char query[2048];
 
     // Redis connection
     redisContext *redis = redisConnect("127.0.0.1", 6379);
 
-    if (redis == NULL || redis->err) {
-        if (redis) {
-            printf("Error: %s\n", redis->errstr);
-        } else {
-            printf("Can't allocate redis context\n");
-        }
+    if (redis == NULL) {
+        printf("Can't allocate redis context\n");
+        return -1;
+    }
+
+    if (redis->err) {
+        printf("Error: %s\n", redis->errstr);
+        return -1;
     }
 
     // SQL connection
@@ -28,7 +30,7 @@ int main(void) {
     }
 
     while (1) {
-        printf("Enter SQL Query: ");
+        printf("Enter SQL Query (Please input only in uppercase letters): ");
         fgets(query, sizeof(query), stdin);
 
         // 1. 쿼리 실행
@@ -36,40 +38,24 @@ int main(void) {
         // 2. INSERT, UPDATE, DELETE 여부 확인
         char event_message[512];
         char channel[50];
+        char table[30];
 
-        if (strncasecmp(query, "INSERT", 6) == 0) {
-            char *table = strcasestr(query, "INTO");
-
-            if (table == NULL) {
-                printf("Error: You must Input table name. Please try again.\n");
-                continue;
-            }
-
+        // 어떤 테이블에 해당 이벤트가 발생했는지 확인
+        // TODO: 소문자 고려
+        if (strncmp(query, "INSERT INTO ", 12) == 0) {
+            sscanf(query + 12, "%s", table);
             snprintf(event_message, sizeof(event_message), "{\"table\": \"%s\", \"change\": \"insert\"}", table);
-            snprintf(channel, sizeof(channel), table);
-        } else if (strncasecmp(query, "UPDATE", 6) == 0) {
-            char *table = strcasestr(query, "UPDATE");
-
-            if (table == NULL) {
-                printf("Error: You must Input table name. Please try again.\n");
-                continue;
-            }
-
+        } else if (strncmp(query, "UPDATE ", 7) == 0) {
+            sscanf(query + 7, "%s", table);
             snprintf(event_message, sizeof(event_message), "{\"table\": \"%s\", \"change\": \"update\"}", table);
-            snprintf(channel, sizeof(channel), table);
-        } else if (strncasecmp(query, "DELETE", 6) == 0) {
-            char *table = strcasestr(query, "FROM");
-
-            if (table == NULL) {
-                printf("Error: You must Input table name. Please try again.\n");
-                continue;
-            }
-
+        } else if (strncmp(query, "DELETE FROM ", 12) == 0) {
+            sscanf(query + 12, "%s", table);
             snprintf(event_message, sizeof(event_message), "{\"table\": \"%s\", \"change\": \"delete\"}", table);
-            snprintf(channel, sizeof(channel), table);
         }
 
-        redisReply *reply = redisCommand(redis, "PUBLISH %s %s", channel, event_message);
+        printf("%s\n\n", event_message);
+
+        redisReply *reply = redisCommand(redis, "PUBLISH %s %s", "apt", event_message);
         if (reply == NULL) {
             printf("Can't publish command");
         }
